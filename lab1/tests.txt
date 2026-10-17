@@ -1,0 +1,9 @@
+^abcXYnnX$ = ^abXjkY$
+
+^XXXYYZ$ = ^XY$
+
+^aXbXcXd$ = ^tXr$
+
+^abc$ = ^bcd$
+
+^$ = ^$
