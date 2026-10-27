@@ -1,0 +1,280 @@
+Variables{
+  = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+}
+
+MakeToken{
+  (e.Left s.Symb e.Right) s.Symb (e.Seen) = <CheckVarSeen s.Symb (e.Seen)>;
+  (e.Alphabet) s.Symb (e.Seen) = (s.Symb Symb);
+}
+
+CheckVarSeen{
+  s.Symb (e.SeenLeft s.Symb e.SeenRight) = (s.Symb Var 1);
+  s.Symb (e.Seen) = (s.Symb Var 0)
+}
+
+Tokenize{
+  s.Symb e.Rest (e.Seen) = <MakeToken (<Variables>) s.Symb (e.Seen)> <Tokenize e.Rest (e.Seen s.Symb)>;
+  (e.Seen) = ('$' Terminate);
+}
+
+MakeSRS{
+  SepVars (e.P1) (e.P2) s.HeadNum, <HasVar (e.P1)> : True
+    = <Prout '^ --> |(>0)'>
+      <Prout '---Оборачивание переменных в скобки---'>
+      <MakeSRS Return (e.P1) (e.P2) <SepVars (e.P1) (e.P2) s.HeadNum>>;
+  SepVars (e.P1) (e.P2) s.HeadNum, <HasVar (e.P1)> : False
+    = <Prout '^ --> |(>s-)'>
+      <MakeSRS EraseExtras (e.P1) (e.P2) s.HeadNum>;
+
+  Return (e.P1) (e.P2) s.HeadNum
+    = <Prout '---Возврат в начало строки---'>
+      <MakeSRS CompareVars <ReturnRules (e.P1) (e.P2) s.HeadNum>>;
+  CompareVars (e.P1) (e.P2) s.HeadNum, <HasRepeatingVars (e.P1)> : True
+    = <Prout '---Проверка повторяющихся переменных на совпадание---'>
+      <MakeSRS Fail <CompareVars (e.P1) (e.P2) s.HeadNum>>;
+  Fail (e.P1) (e.P2) s.HeadNum
+    = <Prout '---Восстановление исходной строки при несовпадении---'>
+      <MakeSRS EraseExtras <FailRules (e.P1) (e.P2) s.HeadNum>>; /*не забыть, что скобки фигурные!*/
+  CompareVars (e.P1) (e.P2) s.HeadNum, <HasRepeatingVars (e.P1)> : False
+    = <MakeSRS EraseExtras (e.P1) (e.P2) s.HeadNum>;
+
+  EraseExtras (e.P1) (e.P2) s.HeadNum
+    = <Prout '---Удаление лишних символов и переменных---'>
+      <MakeSRS AddSymbs <EraseExtras (e.P1) (e.P2) s.HeadNum>>;
+  AddSymbs (e.P2) s.HeadNum
+    = <Prout '---Добавление символов из правой части---'>
+      <MakeSRS End <AddSymbs (e.P2) s.HeadNum>>;
+  End = <Prout '---Восстанавливаем начало строки---'> <EndRules>
+}
+
+SepVars{
+  (e.P1) (e.P2Rest) s.HeadNum, <HasVar (e.P1)> : False
+    = <WriteTailRule <TailText (e.P1)> s.HeadNum>;
+  ((s.SymbCurr e.Any) e.P1Rest) (e.P2Rest) s.HeadNum
+    = <SepVarsAux <ReachVar (s.SymbCurr e.Any) () (e.P1Rest)> (e.P2Rest) s.HeadNum>;
+}
+
+SepVarsAux{
+  (e.NonVar) s.VarName s.Num (e.P1Rest) (e.P2Rest) s.HeadNum
+    = <VarEntryRules (e.NonVar) s.VarName s.Num (e.P1Rest) s.HeadNum>
+      <VarExitRules (e.P1Rest) (s.VarName) (s.Num) s.HeadNum>
+      <SepVars (e.P1Rest) (e.P2Rest) <Inc s.HeadNum>>;
+}
+
+HasVar{
+  (('$' Terminate)) = False;
+  ((s.Symb Var s.Num) e.Rest) = True;
+  ((s.Symb Symb) e.Rest) = <HasVar (e.Rest)>;
+}
+
+HasRepeatingVars{
+  (('$' Terminate)) = False;
+  ((s.Symb Var 1) e.Rest) = True;
+  ((e.Other) e.Rest) = <HasRepeatingVars (e.Rest)>;
+}
+
+TailText{
+  (('$' Terminate) e.Rest) = ;
+  ((s.Symb Symb) e.Rest) = s.Symb <TailText (e.Rest)>;
+}
+
+WriteTailRule{
+  s.HeadNum = s.HeadNum;
+  e.Tail s.HeadNum
+    = <Prout <WriteHead RightNum s.HeadNum> e.Tail
+      '$ --> ' e.Tail <WriteHead RightNum s.HeadNum> '$'>
+      s.HeadNum;
+}
+
+ReachVar{
+  ('$' Terminate) (e.NonVar) () = (e.NonVar '$') '$' 0 ();
+  (s.SymbCurr Symb) (e.NonVar) ((e.NextToken) e.P1Rest)
+    = <ReachVar (e.NextToken) (e.NonVar s.SymbCurr) (e.P1Rest)>;
+  (s.SymbCurr Var s.Num) (e.NonVar) (e.P1Rest) = (e.NonVar) s.SymbCurr s.Num (e.P1Rest)
+}
+
+VarEntryRules{
+  () s.VarName s.Num (e.P1Rest) s.HeadNum
+    = <Prout <WriteHead RightNum s.HeadNum> 'γ --> '
+      '([' <BracketIndex s.VarName s.Num s.HeadNum> ')' <WriteHead RightNum s.VarName s.HeadNum> 'γ'>
+      <Prout <WriteHead RightNum s.VarName s.HeadNum> 'γ --> γ' <WriteHead RightNum s.VarName s.HeadNum>>;
+  (e.NonVar) s.VarName s.Num (e.P1Rest) s.HeadNum
+    = <Prout <WriteHead RightNum s.HeadNum> e.NonVar ' --> ' e.NonVar
+      '([' <BracketIndex s.VarName s.Num s.HeadNum> ')' <WriteHead RightNum s.VarName s.HeadNum>>
+      <Prout <WriteHead RightNum s.VarName s.HeadNum> 'γ --> γ' <WriteHead RightNum s.VarName s.HeadNum>>
+}
+
+BracketIndex{
+  s.VarName 0 s.HeadNum = s.VarName '0';
+  s.VarName 1 s.HeadNum = s.VarName '1_' <Symb s.HeadNum>
+}
+
+VarExitRules{
+  ((s.SymbCurr e.Any) e.P1Rest) (s.VarName) (s.Num) s.HeadNum
+    = <VarExitRules <GetNonVar <ReachVar (s.SymbCurr e.Any) () (e.P1Rest)>> (s.VarName) (s.Num) s.HeadNum>;
+  () (s.VarName) (s.Num) s.HeadNum
+    = <Prout <WriteHead RightNum s.VarName s.HeadNum>
+      'γ --> (]' <BracketIndex s.VarName s.Num s.HeadNum>')' <WriteHead RightNum <Inc s.HeadNum>> 'γ'>;
+  (e.NextStr) (s.VarName) (s.Num) s.HeadNum
+    = <Prout <WriteHead RightNum s.VarName s.HeadNum>  e.NextStr ' --> (]'
+      <BracketIndex s.VarName s.Num s.HeadNum> ')' <WriteHead RightNum <Inc s.HeadNum>> e.NextStr>
+}
+
+GetNonVar{
+  (e.NonVar) s.SymbCurr s.Num (e.P1Rest) = (e.NonVar)
+}
+
+Inc{
+  s.Num = <Add s.Num 1>
+}
+
+ReturnRules{
+  (e.P1) (e.P2) s.HeadNum
+    = <Prout <WriteHead RightNum s.HeadNum> '$ --> ' <WriteHead LeftNum 0> '$'>
+      <Prout 'ANY' <WriteHead LeftNum 0> ' --> ' <WriteHead LeftNum 0> 'ANY'>
+      <Prout '|' <WriteHead LeftNum 0> ' --> |' <WriteHead RightNum <Inc s.HeadNum>>>
+      (e.P1) (e.P2) <Inc s.HeadNum>
+}
+
+CompareVars{
+  (e.P1) (e.P2) s.HeadNum
+    = <CompareVarsRules <FindRepeatingVars (e.P1) ()> s.HeadNum>
+      (e.P1) (e.P2) s.HeadNum;
+}
+
+FindRepeatingVars{
+  () (e.Rep) = (e.Rep);
+  ((s.Symb Var 1) e.P1) (e.RepLeft s.Symb e.RepRight)
+    = <FindRepeatingVars (e.P1) (e.RepLeft s.Symb e.RepRight)>;
+  ((s.Symb Var 1) e.P1) (e.Rep) = <FindRepeatingVars (e.P1) (e.Rep s.Symb)>;
+  ((e.Other) e.P1) (e.Rep) = <FindRepeatingVars (e.P1) (e.Rep)>;
+}
+
+CompareVarsRules{
+  () = ;
+  (s.Var e.Rest) s.HeadNum
+    = <Prout <WriteHead RightNum s.HeadNum> ' --> ' <WriteHead Right s.Var '?'>>
+      <CompareVarsRules (s.Var e.Rest)>;
+  (s.Var e.Rest)
+    = <Prout <WriteHead Right s.Var '?'> '(γ*) --> (γ*)' <WriteHead Right s.Var '?'>>
+      <Prout <WriteHead Right s.Var '?'> '([' s.Var '0) --> ([' s.Var '0)!' <WriteHead Right s.Var '?'>>
+      <Prout <WriteHead Right s.Var '?'> '([' s.Var 'λ*) --> ({' s.Var 'λ*)!' <WriteHead Right s.Var '~'>>
+      <Prout '!' <WriteHead Right s.Var '~'> 'β --> ' <WriteHead Left s.Var 'β'> 'β!'>
+      <Prout '(γ*)' <WriteHead Left s.Var 'β'> '--> ' <WriteHead Left s.Var 'β'> '(γ*)'>
+      <Prout '!' <WriteHead Left s.Var 'β'> 'β --> ' 'β!' <WriteHead Right s.Var '~'>>
+      <Prout <WriteHead Right s.Var '~'> '(γ*) --> (γ*)' <WriteHead Right s.Var '~'>>
+      <Prout '!' <WriteHead Right s.Var '~'> '(]' s.Var 'λ*) --> ' <WriteHead Left s.Var '?'> '(}' s.Var 'λ*)'>
+      <Prout '(γ*)' <WriteHead Left s.Var '?'> ' --> ' <WriteHead Left s.Var '?'> '(γ*)'>
+      <Prout '!' <WriteHead Left s.Var '?'> '(]' s.Var '0) --> ' <WriteHead Left s.Var '!'> '(]' s.Var '0)'>
+      <Prout 'γ' <WriteHead Left s.Var '!'> ' --> ' <WriteHead Left s.Var '!'> 'γ'>
+      <Prout '([' s.Var '0)' <WriteHead Left s.Var '!'> ' --> ([' s.Var '0)!' <WriteHead Right s.Var '?'>>
+      <Prout <WriteHead Right s.Var '?'> '$ --> ' <WriteHead Left s.Var 'done'> '$'>
+      <Prout '!' <WriteHead Left s.Var 'done'> ' --> ' <WriteHead Left s.Var 'done'>>
+      <Prout '(γ*)' <WriteHead Left s.Var 'done'> ' --> ' <WriteHead Left s.Var 'done'> '(γ*)'>
+      <IsLastVar s.Var (e.Rest)>
+      <Prout '!' <WriteHead Left s.Var 'β'> 'γ --> ' <WriteHead Right 'fail'> 'γ'>
+      <Prout '!' <WriteHead Right s.Var '~'> '(]' s.Var 'λ) --> ' <WriteHead Right 'fail'>>
+      <CompareVarsRules (e.Rest)>
+}
+
+IsLastVar{
+  s.Var ()
+    = <Prout '|' <WriteHead Left s.Var 'done'> ' --> |' <WriteHead Right 's-'>>;
+  s.Var (s.NextVar e.Rest)
+    = <Prout '|' <WriteHead Left s.Var 'done'> ' --> |' <WriteHead Right s.NextVar '?'>>
+}
+
+FailRules{
+  (e.P1) (e.P2) s.HeadNum
+    = <Prout <WriteHead Right 'fail'> 'ANY --> ANY' <WriteHead Right 'fail'>>
+      <Prout <WriteHead Right 'fail'> '$ --> ' <WriteHead Left 'fail'> '$'>
+      <Prout 'γ' <WriteHead Left 'fail'> ' --> ' <WriteHead Left 'fail'> 'γ'>
+      <Prout '(]Nλ)' <WriteHead Left 'fail'> ' --> ' <WriteHead Left 'fail'>>
+      <Prout '(}Nλ)' <WriteHead Left 'fail'> ' --> ' <WriteHead Left 'fail'>>
+      <Prout '([Nλ)' <WriteHead Left 'fail'> ' --> ' <WriteHead Left 'fail'>>
+      <Prout '({Nλ)' <WriteHead Left 'fail'> ' --> ' <WriteHead Left 'fail'>>
+      <Prout '!' <WriteHead Left 'fail'> ' --> ' <WriteHead Left 'fail'>>
+      <Prout '|' <WriteHead Left 'fail'> ' --> ^'>
+      (e.P1) (e.P2) s.HeadNum
+}
+
+EraseExtras{
+  (e.P1) (e.P2) s.HeadNum
+    = <RemoveSymbRules>
+      <RemoveVarsRules <FindVars () (e.P2)>>
+      (e.P2) s.HeadNum
+}
+
+RemoveSymbRules{
+    = <Prout <WriteHead Right 's-'> 'γ --> ' <WriteHead Right 's-'>>
+      <Prout <WriteHead Right 's~'> 'γ --> γ' <WriteHead Right 's~'>>
+      <Prout <WriteHead Right 's-'> '([Nλ) --> ([Nλ)' <WriteHead Right 's~'>>
+      <Prout <WriteHead Right 's~'> '(]Nλ) --> (]Nλ)' <WriteHead Right 's-'>>
+      <Prout <WriteHead Right 's-'> '({Nλ) --> ({Nλ)' <WriteHead Right 's~'>>
+      <Prout <WriteHead Right 's~'> '(}Nλ) --> (}Nλ)' <WriteHead Right 's-'>>
+      <Prout <WriteHead Right 's-'> '$ --> ' <WriteHead Left 's-'> '$'>
+      <Prout 'ANY' <WriteHead Left 's-'> ' --> ' <WriteHead Left 's-'> 'ANY'>
+      <Prout '|' <WriteHead Left 's-'> ' --> ' '|' <WriteHead Right 'v-'>>
+}
+
+FindVars{
+  (e.Vars) () = (e.Vars);
+  (e.Vars) ((s.Symb Var s.Num) e.P2) = <FindVars (e.Vars s.Symb) (e.P2)>;
+  (e.Vars) ((e.Other) e.P2) = <FindVars (e.Vars) (e.P2)>
+}
+
+RemoveVarsRules{
+  (s.Symb e.Vars)
+    = <Prout <WriteHead Right 'v-'> '([' s.Symb '0) --> ([' s.Symb '0)' <WriteHead Right 'v~'>>
+      <Prout <WriteHead Right 'v~'> '(]' s.Symb '0) --> ' <WriteHead Right 'v-'>>
+      <RemoveVarsRules (e.Vars)>;
+  ()
+    = <Prout <WriteHead Right 'v~'> 'γ --> γ' <WriteHead Right 'v~'>>
+      <Prout <WriteHead Right 'v-'> '$ --> ' <WriteHead Left 'v-'> '$'>
+      <Prout <WriteHead Right 'v-'> 'OTHER --> ' <WriteHead Right 'v-'>>
+      <Prout '|' <WriteHead Left 'v-'> ' --> |' <WriteHead Right 'v+'>>
+}
+
+AddSymbs{
+  () s.HeadNum = ;
+  ((s.Symb e.Any) e.P2) s.HeadNum
+    = <AddSymbsAux <ReachVar (s.Symb e.Any) () (e.P2)> s.HeadNum>
+}
+
+AddSymbsAux{
+  (e.NonVar) s.Symb s.Num (e.P2Rest) s.HeadNum
+    = <AddSymbsRules (e.NonVar) (s.Symb)>
+      <AddSymbs (e.P2Rest) s.HeadNum>
+}
+
+AddSymbsRules{
+  (e.Substr) ('$')
+    = <Prout <WriteHead Right 'v+'> 'γ --> γ' <WriteHead Right 'v+'>>
+      <Prout <WriteHead Right 'v+'> '$ --> ' <WriteHead Left 'end'> e.Substr>;
+  (e.Substr) (s.Var)
+    = <Prout <WriteHead Right 'v+'> '([' s.Var '0) --> ' e.Substr <WriteHead Right 'v+'>>
+}
+
+EndRules{
+    = <Prout 'γ' <WriteHead Left 'end'> ' --> ' <WriteHead Left 'end'> 'γ'>
+      <Prout '|' <WriteHead Left 'end'> ' --> ^'>
+}
+
+WriteHead{
+  RightNum e.VarName s.Num = '(>' e.VarName <Symb s.Num> ')';
+  LeftNum e.VarName s.Num = '(<' e.VarName <Symb s.Num> ')';
+  Right e.VarName = '(>' e.VarName ')';
+  Left e.VarName = '(<' e.VarName ')'
+}
+
+CheckRuleValidity{
+  '^' e.P1 '$ = ^' e.P2 '$'
+    = <Prout '---Начинаем стоить SRS!---'>
+      <MakeSRS SepVars (<Tokenize e.P1 ()>) (<Tokenize e.P2 ()>) 0>;
+  e.Anything = <Prout 'Rule is incorrect!'>
+}
+
+$ENTRY Go{
+    = <Prout "Введите правило вида ^abcXYnnX$ = ^abXjkY$ :">
+      <CheckRuleValidity <Card>>
+}
