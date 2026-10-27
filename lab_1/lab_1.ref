@@ -158,12 +158,12 @@ CompareVarsRules{
   (s.Var e.Rest)
     = <Prout <WriteHead Right s.Var '?'> '(γ*) --> (γ*)' <WriteHead Right s.Var '?'>>
       <Prout <WriteHead Right s.Var '?'> '([' s.Var '0) --> ([' s.Var '0)!' <WriteHead Right s.Var '?'>>
-      <Prout <WriteHead Right s.Var '?'> '([' s.Var 'λ) --> ({' s.Var 'λ)!' <WriteHead Right s.Var '~'>>
+      <Prout <WriteHead Right s.Var '?'> '([' s.Var 'λ*) --> ({' s.Var 'λ*)!' <WriteHead Right s.Var '~'>>
       <Prout '!' <WriteHead Right s.Var '~'> 'β --> ' <WriteHead Left s.Var 'β'> 'β!'>
       <Prout '(γ*)' <WriteHead Left s.Var 'β'> '--> ' <WriteHead Left s.Var 'β'> '(γ*)'>
       <Prout '!' <WriteHead Left s.Var 'β'> 'β --> ' 'β!' <WriteHead Right s.Var '~'>>
       <Prout <WriteHead Right s.Var '~'> '(γ*) --> (γ*)' <WriteHead Right s.Var '~'>>
-      <Prout '!' <WriteHead Right s.Var '~'> '(]' s.Var 'λ) --> ' <WriteHead Left s.Var '?'> '(}' s.Var 'λ)'>
+      <Prout '!' <WriteHead Right s.Var '~'> '(]' s.Var 'λ*) --> ' <WriteHead Left s.Var '?'> '(}' s.Var 'λ*)'>
       <Prout '(γ*)' <WriteHead Left s.Var '?'> ' --> ' <WriteHead Left s.Var '?'> '(γ*)'>
       <Prout '!' <WriteHead Left s.Var '?'> '(]' s.Var '0) --> ' <WriteHead Left s.Var '!'> '(]' s.Var '0)'>
       <Prout 'γ' <WriteHead Left s.Var '!'> ' --> ' <WriteHead Left s.Var '!'> 'γ'>
